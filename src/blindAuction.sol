@@ -20,13 +20,19 @@ contract Auction {
         uint32 tokenId_,
         string message_
     );
+    event paidBeneficiary(
+        address _beneficiary,
+        uint256 _amount,
+        string message
+    );
+    event withdraw(address _to, uint256 _amt, string msg);
 
     uint256 internal duration;
     uint256 startingPrice;
     uint32 internal startAt;
     uint32 internal endAt;
     uint32 tokenId;
-    // uint256 highestBid;
+    uint256 highestBid;
 
     bool auctionInSession;
 
@@ -135,13 +141,14 @@ contract Auction {
             revert("No bids yet...");
         }
 
-        uint256 highestBid;
+        uint256 _highestBid;
         address _winner;
 
         for (uint32 i = 0; i < bidders.length; i++) {
-            if (bidsToAccounts[bidders[i]] > highestBid) {
+            if (bidsToAccounts[bidders[i]] > _highestBid) {
                 _winner = bidders[i];
-                highestBid = bidsToAccounts[_winner];
+                _highestBid = bidsToAccounts[_winner];
+                highestBid = _highestBid;
                 highestBidder = payable(_winner);
             }
         }
@@ -162,23 +169,52 @@ contract Auction {
         );
     }
 
-
     function refundBidders() public onlyOwner {
-        if(auctionInSession) { revert("Auction still ongoing");}
-        if(bidders.length = 0){ revert("No bidders registered");}
+        if (auctionInSession) {
+            revert("Auction still ongoing");
+        }
+        if (bidders.length = 0) {
+            revert("No bidders registered");
+        }
 
-
-        for(uint32 i = 0; i < bidders.length; i++) {
-            if(bidders[i] != highestBidder) {
+        for (uint32 i = 0; i < bidders.length; i++) {
+            if (bidders[i] != highestBidder) {
                 // payable(bidders[i]).transfer(bidsToAccounts[bidders[i]]);
-                (bool success, ) = payable(bidders[i]).call{value: bidsToAccounts[bidders[i]]};
+                (bool success, ) = payable(bidders[i]).call{
+                    value: bidsToAccounts[bidders[i]]
+                };
                 require(success, "Transfer FAIL!");
             }
-            
+
             emit refund(bidders[i], true);
         }
     }
 
+    function sendEthToBeneficiary() public onlyOwner {
+        if (auctionInSession) {
+            revert("Auction still ongoing...");
+        }
+
+        (bool success, ) = beneficiary.call{value: highestBid}("");
+
+        emit paidBeneficiary(
+            beneficiary,
+            highestBid,
+            "Beneficary paid successfully"
+        );
+    }
+
+    function withdrawEth(address _to, uint256 _amt) public onlyOwner {
+        if(_to == address(0)) {revert("Invalid address");}
+        if(_amt <= 0) {revert("Invalid amount");}
+
+        (bool success, ) = payable(_to).call{ value: _amt}("");
+        require(success, "Transfer FAIL!");
+        emit withdraw(_to, _amt, "Withdraw Operation successful...");
+    }
 
 
+    receive() external {}
+
+    fallback() external {}
 }
