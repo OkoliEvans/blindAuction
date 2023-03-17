@@ -14,16 +14,19 @@ contract Auction {
     event refund(address _receiver, bool _success);
     event AddBeneficiary(address _beneficiary, string _message);
     event Bidded(address _bidder, string _message);
+    event NftTransferred(address highestBidder_, address NFT_, uint32 tokenId_, string message_);
 
     uint256 internal duration;
+    uint256 startingPrice;
     uint32 internal startAt;
     uint32 internal endAt;
-    uint256 highestBid;
-    uint256 startingPrice;
+    uint32 tokenId;
+    // uint256 highestBid;
 
     bool auctionInSession;
 
     mapping(address => uint256) bidsToAccounts;
+    address[] bidders;
 
     address NFT;
     address payable highestBidder;
@@ -35,46 +38,62 @@ contract Auction {
     }
 
     modifier onlyOwner() {
-        require(Admin == msg.sender, "Unauthorized: Not Admin");
+        require(msg.sender == Admin, "Unauthorized: Not Admin");
         _;
     }
 
     /// SET INITIAL VARIABLES AND VALUES
-    function setStartPrice(uint256 _startingPrice) public onlyOwner returns(uint256) {
+    function setStartPrice(
+        uint256 _startingPrice
+    ) public onlyOwner returns (uint256) {
         return startingPrice = _startingPrice;
     }
 
-    function setStartTime(uint32 _start) internal onlyOwner returns(uint32) {
+    function setStartTime(uint32 _start) internal onlyOwner returns (uint32) {
         return startAt = _start;
     }
 
-    function setEndTime(uint32 _endTime) public onlyOwner returns(uint32) {
+    function setEndTime(uint32 _endTime) internal onlyOwner returns (uint32) {
         return endAt = _endTime;
     }
 
-    function assignBeneficiary(address payable _beneficiary) public onlyOwner{
-        if(_beneficiary == address(0)) { revert("Invalid address");}
+    function assignBeneficiary(address payable _beneficiary) public onlyOwner {
+        if (_beneficiary == address(0)) {
+            revert("Invalid address");
+        }
         beneficiary = _beneficiary;
 
         emit AddBeneficiary(_beneficiary, "Beneficiary added succesfully...");
     }
 
-    function addNFT(address _NFT) public onlyOwner {
-        if(_NFT == address(0)) {revert("Invalid NFT address");}
+    function addNFT(address _NFT, uint32 _tokenId) public onlyOwner {
+        if (_NFT == address(0)) {
+            revert("Invalid NFT address");
+        }
+        tokenId = _tokenId;
         NFT = _NFT;
 
         emit NFTAdded(_NFT, "NFT added successfully...");
     }
 
-    function checkDuration() public returns(uint256) {
+    function checkDuration() public returns (uint256) {
         return duration = endAt - startAt;
     }
 
     /// V2 CORE FUNCTIONS
     function startAuction(uint32 _start, uint32 _end) public onlyOwner {
-        if(auctionInSession){ revert("Auction already in session"); }
-        if (_start <= 0) { revert("invalid time, enter valid time...");}
-        if(startingPrice <= 0) { revert("Set start price");}
+        if (auctionInSession) {
+            revert("Auction already in session");
+        }
+        if (_start <= 0) {
+            revert("invalid time, enter valid time...");
+        }
+        if (_end <= _start) {
+            revert("invalid time, enter valid time...");
+        }
+        if (startingPrice <= 0) {
+            revert("Set start price");
+        }
         setStartTime(_start);
         setEndTime(_end);
         auctionInSession = true;
@@ -83,33 +102,60 @@ contract Auction {
     }
 
     function enterBid() public payable {
-        if(!auctionInSession){ revert("Auction not open for bids yet, try again later"); }
-        if(msg.value < startingPrice) {revert("Amount is less than minimun price required to enter bid");}
-        (bool success, ) = payable(address(this)).call{value: startingPrice}("");
+        if (!auctionInSession) {
+            revert("Auction not open for bids yet, try again later");
+        }
+        if (msg.value < startingPrice) {
+            revert("Amount is less than minimun price required to enter bid");
+        }
+        (bool success, ) = payable(address(this)).call{value: startingPrice}(
+            ""
+        );
         require(success, "Transfer FAIL!");
 
         bidsToAccounts[msg.sender] = msg.value;
+        bidders.push(msg.sender);
         emit Bidded(msg.sender, "Bid successful...");
+    }
+
+    function endAuction() internal {
+        if (!auctionInSession) {
+            revert("Auction already ended");
+        }
+        auctionInSession = false;
+    }
+
+    function pickWinner() internal returns (address) {
+        if (bidders.length <= 0) {
+            revert("No bids yet...");
+        }
+
+        uint256 highestBid;
+        address _winner;
+
+        for (uint32 i = 0; i < bidders.length; i++) {
+            if(bidsToAccounts[bidders[i]] > highestBid) {
+                _winner = bidders[i];
+                highestBid = bidsToAccounts[_winner];
+                highestBidder = payable(_winner);
+            }
+        }
+        return highestBidder;
+    }
+
+    function sendNFTtoHighestBidder() public onlyOwner {
+        endAuction();
+        pickWinner();
+
+        IERC721(NFT).transferFrom(
+            address(this),
+            highestBidder,
+            tokenId
+        );
+
+        emit NftTransferred(highestBidder, NFT, tokenId, "NFT transfer success!");
     }
 
 
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
