@@ -23,7 +23,7 @@ contract Auction {
     event paidBeneficiary(
         address _beneficiary,
         uint256 _amount,
-        string message
+        string _message
     );
     event withdraw(address _to, uint256 _amt, string msg);
 
@@ -77,12 +77,15 @@ contract Auction {
         emit AddBeneficiary(_beneficiary, "Beneficiary added succesfully...");
     }
 
+    ///@dev Assuming the NFT to be auctioned is owned by third party Beneficiary
     function addNFT(address _NFT, uint32 _tokenId) public onlyOwner {
         if (_NFT == address(0)) {
             revert("Invalid NFT address");
         }
         tokenId = _tokenId;
         NFT = _NFT;
+
+        IERC271(NFT).transferFrom(beneficiary, address(this), _tokenId);
 
         emit NFTAdded(_NFT, "NFT added successfully...");
     }
@@ -205,14 +208,17 @@ contract Auction {
     }
 
     function withdrawEth(address _to, uint256 _amt) public onlyOwner {
-        if(_to == address(0)) {revert("Invalid address");}
-        if(_amt <= 0) {revert("Invalid amount");}
+        if (_to == address(0)) {
+            revert("Invalid address");
+        }
+        if (_amt <= 0) {
+            revert("Invalid amount");
+        }
 
-        (bool success, ) = payable(_to).call{ value: _amt}("");
+        (bool success, ) = payable(_to).call{value: _amt}("");
         require(success, "Transfer FAIL!");
         emit withdraw(_to, _amt, "Withdraw Operation successful...");
     }
-
 
     receive() external {}
 
