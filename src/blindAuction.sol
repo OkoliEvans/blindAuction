@@ -199,6 +199,7 @@ contract Auction {
         }
 
         (bool success, ) = beneficiary.call{value: highestBid}("");
+        require(success, "Failed to send Ether");
 
         emit paidBeneficiary(
             beneficiary,
