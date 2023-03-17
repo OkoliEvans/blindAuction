@@ -71,19 +71,25 @@ contract Auction {
     }
 
     /// V2 CORE FUNCTIONS
-    function startAuction(uint32 _start) public onlyOwner {
-        if(!auctionInSession){ revert("Auction not open for bids yet, try again later"); }
-        if (_start <= 0) { revert("invalid time, check...");}
+    function startAuction(uint32 _start, uint32 _end) public onlyOwner {
+        if(auctionInSession){ revert("Auction already in session"); }
+        if (_start <= 0) { revert("invalid time, enter valid time...");}
         if(startingPrice <= 0) { revert("Set start price");}
         setStartTime(_start);
+        setEndTime(_end);
         auctionInSession = true;
 
         emit Log("Auction started");
     }
 
-    function enterBid() public payable returns (bool success) {
-        if(msg.value < startingPrice) {revert("Amount is less than minimun price");}
-        
+    function enterBid() public payable {
+        if(!auctionInSession){ revert("Auction not open for bids yet, try again later"); }
+        if(msg.value < startingPrice) {revert("Amount is less than minimun price required to enter bid");}
+        (bool success, ) = payable(address(this)).call{value: startingPrice}("");
+        require(success, "Transfer FAIL!");
+
+        bidsToAccounts[msg.sender] = msg.value;
+        emit Bidded(msg.sender, "Bid successful...");
     }
 
 
