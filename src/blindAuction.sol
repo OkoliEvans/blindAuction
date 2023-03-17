@@ -9,10 +9,11 @@ pragma solidity ^0.8.17;
 ///@dev Keccak hash bids of each bidder and adds them to a map, retrives the highest bidder
 
 contract Auction {
-    event Log(address _bidder, bool _bidSuccess);
+    event Log(string _message);
     event NFTAdded(address _NFT, string _message);
     event refund(address _receiver, bool _success);
-    event AddAuctioneer(address _auctioneer, string _message);
+    event AddBeneficiary(address _beneficiary, string _message);
+    event Bidded(address _bidder, string _message);
 
     uint256 internal duration;
     uint32 internal startAt;
@@ -20,18 +21,17 @@ contract Auction {
     uint256 highestBid;
     uint256 startingPrice;
 
-    bool started;
-    bool ended;
+    bool auctionInSession;
 
     mapping(address => uint256) bidsToAccounts;
 
     address NFT;
-    address highestBidder;
-    address Admin;
-    address auctioneer;
+    address payable highestBidder;
+    address payable Admin;
+    address payable beneficiary;
 
     constructor() {
-        Admin = msg.sender;
+        Admin = payable(msg.sender);
     }
 
     modifier onlyOwner() {
@@ -39,16 +39,12 @@ contract Auction {
         _;
     }
 
-    modifier onlyAuctioneer() {
-        require(auctioneer, "Unauthorized: Not Auctioneer");
-        _;
-    }
-
+    /// SET INITIAL VARIABLES AND VALUES
     function setStartPrice(uint256 _startingPrice) public onlyOwner returns(uint256) {
         return startingPrice = _startingPrice;
     }
 
-    function setStartTime(uint32 _start) public onlyOwner returns(uint32) {
+    function setStartTime(uint32 _start) internal onlyOwner returns(uint32) {
         return startAt = _start;
     }
 
@@ -56,11 +52,11 @@ contract Auction {
         return endAt = _endTime;
     }
 
-    function assignAuctioneer(address _auctioneer) public onlyOwner{
-        if(_auctioneer == address(0)) { revert("Invalid address");}
-        auctioneer = _auctioneer;
+    function assignBeneficiary(address payable _beneficiary) public onlyOwner{
+        if(_beneficiary == address(0)) { revert("Invalid address");}
+        beneficiary = _beneficiary;
 
-        emit AddAuctioneer(_auctioneer, "Auctioneer added succesfully...");
+        emit AddBeneficiary(_beneficiary, "Beneficiary added succesfully...");
     }
 
     function addNFT(address _NFT) public onlyOwner {
@@ -69,6 +65,28 @@ contract Auction {
 
         emit NFTAdded(_NFT, "NFT added successfully...");
     }
+
+    function checkDuration() public returns(uint256) {
+        return duration = endAt - startAt;
+    }
+
+    /// V2 CORE FUNCTIONS
+    function startAuction(uint32 _start) public onlyOwner {
+        if(!auctionInSession){ revert("Auction not open for bids yet, try again later"); }
+        if (_start <= 0) { revert("invalid time, check...");}
+        if(startingPrice <= 0) { revert("Set start price");}
+        setStartTime(_start);
+        auctionInSession = true;
+
+        emit Log("Auction started");
+    }
+
+    function enterBid() public payable returns (bool success) {
+        if(msg.value < startingPrice) {revert("Amount is less than minimun price");}
+        
+    }
+
+
 
 }
 
