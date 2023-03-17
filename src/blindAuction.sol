@@ -14,7 +14,12 @@ contract Auction {
     event refund(address _receiver, bool _success);
     event AddBeneficiary(address _beneficiary, string _message);
     event Bidded(address _bidder, string _message);
-    event NftTransferred(address highestBidder_, address NFT_, uint32 tokenId_, string message_);
+    event NftTransferred(
+        address highestBidder_,
+        address NFT_,
+        uint32 tokenId_,
+        string message_
+    );
 
     uint256 internal duration;
     uint256 startingPrice;
@@ -126,7 +131,7 @@ contract Auction {
     }
 
     function pickWinner() internal returns (address) {
-        if (bidders.length <= 0) {
+        if (bidders.length = 0) {
             revert("No bids yet...");
         }
 
@@ -134,7 +139,7 @@ contract Auction {
         address _winner;
 
         for (uint32 i = 0; i < bidders.length; i++) {
-            if(bidsToAccounts[bidders[i]] > highestBid) {
+            if (bidsToAccounts[bidders[i]] > highestBid) {
                 _winner = bidders[i];
                 highestBid = bidsToAccounts[_winner];
                 highestBidder = payable(_winner);
@@ -147,13 +152,31 @@ contract Auction {
         endAuction();
         pickWinner();
 
-        IERC721(NFT).transferFrom(
-            address(this),
-            highestBidder,
-            tokenId
-        );
+        IERC721(NFT).transferFrom(address(this), highestBidder, tokenId);
 
-        emit NftTransferred(highestBidder, NFT, tokenId, "NFT transfer success!");
+        emit NftTransferred(
+            highestBidder,
+            NFT,
+            tokenId,
+            "NFT transfer success!"
+        );
+    }
+
+
+    function refundBidders() public onlyOwner {
+        if(auctionInSession) { revert("Auction still ongoing");}
+        if(bidders.length = 0){ revert("No bidders registered");}
+
+
+        for(uint32 i = 0; i < bidders.length; i++) {
+            if(bidders[i] != highestBidder) {
+                // payable(bidders[i]).transfer(bidsToAccounts[bidders[i]]);
+                (bool success, ) = payable(bidders[i]).call{value: bidsToAccounts[bidders[i]]};
+                require(success, "Transfer FAIL!");
+            }
+            
+            emit refund(bidders[i], true);
+        }
     }
 
 
