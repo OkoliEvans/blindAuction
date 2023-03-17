@@ -122,6 +122,12 @@ contract Auction {
         if (msg.value < startingPrice) {
             revert("Amount is less than minimun price required to enter bid");
         }
+        if (msg.sender == Admin) {
+            revert("Not eligible to bid");
+        }
+        if (bidsToAccounts[msg.sender] > 0) {
+            revert("Bid already submitted, cannot bid more than once");
+        }
         (bool success, ) = payable(address(this)).call{value: startingPrice}(
             ""
         );
