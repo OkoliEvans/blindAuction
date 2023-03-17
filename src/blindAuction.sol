@@ -8,7 +8,7 @@ pragma solidity ^0.8.17;
 ///@notice Transfers the NFT to the highest bidder, refunds every other bidder
 ///@dev Keccak hash bids of each bidder and adds them to a map, retrives the highest bidder
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract Auction {
 
@@ -89,7 +89,7 @@ contract Auction {
         tokenId = _tokenId;
         NFT = _NFT;
 
-        IERC271(NFT).transferFrom(beneficiary, address(this), _tokenId);
+        IERC721(NFT).transferFrom(beneficiary, address(this), _tokenId);
 
         emit NFTAdded(_NFT, "NFT added successfully...");
     }
@@ -150,7 +150,7 @@ contract Auction {
     }
 
     function pickWinner() internal returns (address) {
-        if (bidders.length = 0) {
+        if (bidders.length == 0) {
             revert("No bids yet...");
         }
 
@@ -182,20 +182,19 @@ contract Auction {
         );
     }
 
-    function refundBidders() public onlyOwner {
+    function refundBidders() public payable onlyOwner {
         if (auctionInSession) {
             revert("Auction still ongoing");
         }
-        if (bidders.length = 0) {
+        if (bidders.length == 0) {
             revert("No bidders registered");
         }
 
         for (uint32 i = 0; i < bidders.length; i++) {
             if (bidders[i] != highestBidder) {
                 // payable(bidders[i]).transfer(bidsToAccounts[bidders[i]]);
-                (bool success, ) = payable(bidders[i]).call{
-                    value: bidsToAccounts[bidders[i]]
-                };
+       
+                bool success = payable(bidders[i]).send(bidsToAccounts[bidders[i]]);
                 require(success, "Transfer FAIL!");
             }
 
@@ -203,7 +202,7 @@ contract Auction {
         }
     }
 
-    function sendEthToBeneficiary() public onlyOwner {
+    function sendEthToBeneficiary() public payable onlyOwner {
         if (auctionInSession) {
             revert("Auction still ongoing...");
         }
@@ -218,7 +217,7 @@ contract Auction {
         );
     }
 
-    function withdrawEth(address _to, uint256 _amt) public onlyOwner {
+    function withdrawEth(address _to, uint256 _amt) public payable onlyOwner {
         if (_to == address(0)) {
             revert("Invalid address");
         }
@@ -231,7 +230,7 @@ contract Auction {
         emit withdraw(_to, _amt, "Withdraw Operation successful...");
     }
 
-    receive() external {}
+    receive() payable external {}
 
-    fallback() external {}
+    fallback() payable external {}
 }
