@@ -8,7 +8,11 @@ pragma solidity ^0.8.17;
 ///@notice Transfers the NFT to the highest bidder, refunds every other bidder
 ///@dev Keccak hash bids of each bidder and adds them to a map, retrives the highest bidder
 
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+
 contract Auction {
+
+
     event Log(string _message);
     event NFTAdded(address _NFT, string _message);
     event refund(address _receiver, bool _success);
