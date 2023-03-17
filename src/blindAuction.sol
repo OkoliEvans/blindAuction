@@ -25,7 +25,7 @@ contract Auction {
         uint256 _amount,
         string _message
     );
-    event withdraw(address _to, uint256 _amt, string msg);
+    event withdraw(address _to, uint256 _amt, string _msg);
 
     uint256 internal duration;
     uint256 startingPrice;
