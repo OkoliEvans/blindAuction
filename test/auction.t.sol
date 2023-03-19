@@ -7,16 +7,16 @@ import "../src/IENFT.sol";
 
 contract AuctionTest is Test {
     Auction public auction;
-    // IENFT internal BAYC = 0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D;
 
     address BAYC = 0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D;
     address  BAYC_holder = 0x08c1AE7E46D4A13b766566033b5C47c735e19F6f;
     uint32 tokenId = 9547;
     uint256 startPrice = (2 ether);
-    // nftAuction.startAuction(1679042970, 1679142970);
-    //  await nftAuction.addNFT(BAYC, 9547);
+
+    // EVENTS
     event Log(string message_);
 
+    // UNIT TESTS
     function setUp() public {
         auction = new Auction();
     }
