@@ -66,11 +66,6 @@ contract Auction {
         return address(this);
     }
 
-    function setStartPrice(
-        uint256 _startingPrice
-    ) public onlyOwner returns (uint256) {
-        return startingPrice = _startingPrice;
-    }
 
     function setStartTime(uint32 _start) internal onlyOwner returns (uint32) {
         return startAt = _start;
@@ -80,45 +75,42 @@ contract Auction {
         return endAt = _endTime;
     }
 
-    function assignBeneficiary(address payable _beneficiary) public onlyOwner {
-        if (_beneficiary == address(0)) {
-            revert("Invalid address");
-        }
-        beneficiary = _beneficiary;
-
-        emit AddBeneficiary(_beneficiary, "Beneficiary added succesfully...");
-    }
-    
-
     ///@dev Assuming the NFT to be auctioned is owned by third party Beneficiary
-    function addNFT(address _NFT, uint32 _tokenId, address _beneficiary) public onlyOwner {
+    function addNFT(address _NFT,address payable _beneficiary, uint32 _tokenId) public payable onlyOwner {
         if (_NFT == address(0)) {
             revert("Invalid NFT address");
         }
         tokenId = _tokenId;
         NFT = _NFT;
+        beneficiary = _beneficiary;
 
         IENFT(NFT).transferFrom(_beneficiary, address(this), _tokenId);
 
         emit NFTAdded(_NFT, "NFT added successfully...");
     }
 
+
+    function getBeneficiary() internal view returns(address) {
+        return beneficiary;
+    }
+
+
     function checkDuration() public returns (uint256) {
         return duration = endAt - startAt;
     }
 
     /// V2 CORE FUNCTIONS
-    function startAuction(uint32 _start, uint32 _end) public onlyOwner {
+    function startAuction( uint256 _startPrice, uint32 _start, uint32 _end) public onlyOwner {
         if (auctionInSession) {
             revert("Auction already in session");
         }
         if (_start <= 0) {
-            revert("invalid time, enter valid time...");
+            revert("invalid start time, enter valid time...");
         }
         if (_end <= _start) {
-            revert("invalid time, enter valid time...");
+            revert("invalid stop time, enter valid time...");
         }
-        if (startingPrice <= 0) {
+        if (_startPrice <= 0) {
             revert("Set start price");
         }
         if (tokenId == 0) {
@@ -127,12 +119,13 @@ contract Auction {
 
         setStartTime(_start);
         setEndTime(_end);
+        startingPrice = _startPrice;
         auctionInSession = true;
 
         emit Log("Auction started");
     }
 
-    function enterBid() public payable {
+    function enterBid(uint256 _amount) public payable {
         if (!auctionInSession) {
             revert("Auction not open for bids yet, try again later");
         }
@@ -145,7 +138,7 @@ contract Auction {
         if (bidsToAccounts[msg.sender] > 0) {
             revert("Bid already submitted, cannot bid more than once");
         }
-        (bool success, ) = payable(address(this)).call{value: startingPrice}(
+        (bool success, ) = payable(address(this)).call{value: _amount}(
             ""
         );
         require(success, "Transfer FAIL!");
