@@ -6,13 +6,12 @@ pragma solidity ^0.8.17;
 ///@title Blind auction contract
 ///@notice Takes bids for an NFT without revealing bids made by bidders,
 ///@notice Transfers the NFT to the highest bidder, refunds every other bidder
-///@dev Keccak hash bids of each bidder and adds them to a map, retrives the highest bidder
+///@dev Maps bidders' addresses each to the amount bidded, retrives the highest bidder
 
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+// import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "./IENFT.sol";
 
 contract Auction {
-
-
     event Log(string _message);
     event NFTAdded(address _NFT, string _message);
     event refund(address _receiver, bool _success);
@@ -45,7 +44,7 @@ contract Auction {
 
     address NFT;
     address payable highestBidder;
-    address payable Admin;
+    address payable public Admin;
     address payable beneficiary;
 
     constructor() {
@@ -58,6 +57,15 @@ contract Auction {
     }
 
     /// SET INITIAL VARIABLES AND VALUES
+
+    function getAdmin() public view returns(address) {
+        return Admin;
+    }
+
+    function getContractAddress() public view returns(address){
+        return address(this);
+    }
+
     function setStartPrice(
         uint256 _startingPrice
     ) public onlyOwner returns (uint256) {
@@ -80,16 +88,17 @@ contract Auction {
 
         emit AddBeneficiary(_beneficiary, "Beneficiary added succesfully...");
     }
+    
 
     ///@dev Assuming the NFT to be auctioned is owned by third party Beneficiary
-    function addNFT(address _NFT, uint32 _tokenId) public onlyOwner {
+    function addNFT(address _NFT, uint32 _tokenId, address _beneficiary) public onlyOwner {
         if (_NFT == address(0)) {
             revert("Invalid NFT address");
         }
         tokenId = _tokenId;
         NFT = _NFT;
 
-        IERC721(NFT).transferFrom(beneficiary, address(this), _tokenId);
+        IENFT(NFT).transferFrom(_beneficiary, address(this), _tokenId);
 
         emit NFTAdded(_NFT, "NFT added successfully...");
     }
@@ -112,6 +121,10 @@ contract Auction {
         if (startingPrice <= 0) {
             revert("Set start price");
         }
+        if (tokenId == 0) {
+            revert("No NFT found: add NFT");
+        }
+
         setStartTime(_start);
         setEndTime(_end);
         auctionInSession = true;
@@ -172,7 +185,7 @@ contract Auction {
         endAuction();
         pickWinner();
 
-        IERC721(NFT).transferFrom(address(this), highestBidder, tokenId);
+        IENFT(NFT).transferFrom(address(this), highestBidder, tokenId);
 
         emit NftTransferred(
             highestBidder,
@@ -193,8 +206,10 @@ contract Auction {
         for (uint32 i = 0; i < bidders.length; i++) {
             if (bidders[i] != highestBidder) {
                 // payable(bidders[i]).transfer(bidsToAccounts[bidders[i]]);
-       
-                bool success = payable(bidders[i]).send(bidsToAccounts[bidders[i]]);
+
+                bool success = payable(bidders[i]).send(
+                    bidsToAccounts[bidders[i]]
+                );
                 require(success, "Transfer FAIL!");
             }
 
@@ -230,7 +245,7 @@ contract Auction {
         emit withdraw(_to, _amt, "Withdraw Operation successful...");
     }
 
-    receive() payable external {}
+    receive() external payable {}
 
-    fallback() payable external {}
+    fallback() external payable {}
 }
