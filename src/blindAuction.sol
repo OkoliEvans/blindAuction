@@ -9,7 +9,8 @@ pragma solidity ^0.8.17;
 ///@dev Maps bidders' addresses each to the amount bidded, retrives the highest bidder
 
 // import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "./IENFT.sol";
+// import "./IeNft.sol";
+import "./eNft.sol";
 
 contract Auction {
     event Log(string _message);
@@ -42,10 +43,11 @@ contract Auction {
     mapping(address => uint256) bidsToAccounts;
     address[] bidders;
 
-    address NFT;
+    address private NFT;
     address payable highestBidder;
     address payable public Admin;
     address payable beneficiary;
+    ENFT internal eNft;
 
     constructor() {
         Admin = payable(msg.sender);
@@ -67,6 +69,11 @@ contract Auction {
     }
 
 
+    function getENftAddress(address _eNft) public pure returns(address) {
+        return _eNft;
+    }
+
+
     function setStartTime(uint32 _start) internal onlyOwner returns (uint32) {
         return startAt = _start;
     }
@@ -84,7 +91,7 @@ contract Auction {
         NFT = _NFT;
         beneficiary = _beneficiary;
 
-        IENFT(NFT).transferFrom(_beneficiary, address(this), _tokenId);
+        // eNft.transferFrom(_beneficiary, address(this), _tokenId);
 
         emit NFTAdded(_NFT, "NFT added successfully...");
     }
@@ -178,7 +185,7 @@ contract Auction {
         endAuction();
         pickWinner();
 
-        IENFT(NFT).transferFrom(address(this), highestBidder, tokenId);
+        eNft.transferFrom(address(this), highestBidder, tokenId);
 
         emit NftTransferred(
             highestBidder,
